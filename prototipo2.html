@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prototipo – Sketch 3 (Cuadrícula visual - Funcional)</title>
+  <style>
+    * { box-sizing: border-box; margin:0; padding:0; font-family: Inter, Arial, sans-serif; }
+    :root{
+      --bg:#f4f6f8; --card:#fff; --muted:#6b7280; --accent:#2563eb; --accent-2:#10b981;
+    }
+    html,body{height:100%;}
+    body{
+      background:var(--bg);
+      color:#111;
+      height:100%;
+      display:flex;flex-direction:column;
+    }
+
+    /* APP LAYOUT */
+    header.appbar{
+      background:linear-gradient(90deg,#0f172a,#1e293b);
+      color:white;padding:18px 28px;display:flex;align-items:center;gap:16px;justify-content:space-between;
+    }
+    .brand{font-weight:700;font-size:18px}
+
+    .toolbar{display:flex;gap:12px;align-items:center}
+    .search{display:flex;gap:8px;align-items:center}
+    .search input{padding:10px 12px;border-radius:8px;border:1px solid #e6eef8;min-width:260px}
+    .search button{padding:10px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;cursor:pointer}
+
+    main{flex:1;display:flex;overflow:hidden}
+
+    /* LEFT: filters */
+    aside.filters{
+      width:300px;padding:18px;background:var(--card);border-right:1px solid #e6e9ef;overflow:auto;
+    }
+    aside h3{font-size:16px;margin-bottom:10px}
+    .filter-group{margin-bottom:16px}
+    label{display:block;font-size:14px;margin-bottom:8px}
+    select,input[type=checkbox],input[type=radio]{margin-right:8px}
+    .chip{display:inline-block;padding:6px 10px;border-radius:999px;background:#f1f5f9;border:1px solid #e6eef8;margin-right:8px;cursor:pointer}
+    .chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+    /* RIGHT: content */
+    section.content{flex:1;padding:22px 26px;overflow:auto}
+    .controls{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+    .controls .left{display:flex;gap:12px;align-items:center}
+    .controls .right{display:flex;gap:8px;align-items:center}
+
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px}
+
+    .card{background:var(--card);border-radius:10px;border:1px solid #e6e9ef;overflow:hidden;box-shadow:0 4px 12px rgba(16,24,40,0.04);display:flex;flex-direction:column}
+    .card .media{height:140px;background:#111;opacity:.75}
+    .card .body{padding:14px;display:flex;flex-direction:column;gap:8px}
+    .title{font-weight:700}
+    .meta{font-size:13px;color:var(--muted)}
+    .bottom{margin-top:auto;display:flex;gap:8px}
+    .btn{padding:8px 10px;border-radius:8px;border:none;cursor:pointer;font-size:13px}
+    .btn.ghost{background:#f1f5f9}
+    .btn.primary{background:var(--accent);color:#fff}
+    .btn.warn{background:#f97316;color:#fff}
+    .btn.compare{background:#111;color:#fff}
+
+    /* modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.5);display:none;align-items:center;justify-content:center;z-index:60}
+    .modal{width:min(820px,95%);background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 12px 60px rgba(2,6,23,0.4)}
+    .modal .media{height:220px;background:#111}
+    .modal .content{padding:18px}
+
+    /* compare bar */
+    .compare-bar{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 8px 30px rgba(2,6,23,0.12);display:flex;gap:10px;align-items:center;z-index:70}
+
+    /* responsive */
+    @media (max-width:900px){
+      aside.filters{display:none}
+      main{flex-direction:column}
+      .container{padding:0}
+      .search input{min-width:140px}
+    }
+
+  </style>
+</head>
+<body>
+
+<header class="appbar">
+  <div class="brand">Fábrica de Talentos</div>
+  <div class="toolbar">
+    <div class="search">
+      <input id="q" placeholder="Buscar cursos..." />
+      <button id="searchBtn">Buscar</button>
+    </div>
+    <div class="user">Ana</div>
+  </div>
+</header>
+
+<main>
+  <aside class="filters">
+    <h3>Filtros</h3>
+
+    <div class="filter-group">
+      <label>Plataforma</label>
+      <div id="platforms"></div>
+    </div>
+
+    <div class="filter-group">
+      <label>Precio</label>
+      <div>
+        <label><input type="radio" name="price" value="all" checked /> Todos</label>
+        <label><input type="radio" name="price" value="free" /> Gratis</label>
+        <label><input type="radio" name="price" value="paid" /> Pago</label>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label>Duración</label>
+      <select id="duration">
+        <option value="">Cualquiera</option>
+        <option value="short">&lt; 8h</option>
+        <option value="medium">8-40h</option>
+        <option value="long">&gt; 40h</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label>Idioma</label>
+      <select id="language">
+        <option value="">Todos</option>
+        <option value="es">Español</option>
+        <option value="en">Inglés</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label>Ordenar por</label>
+      <select id="sort">
+        <option value="relevance">Relevancia</option>
+        <option value="price_asc">Precio ↑</option>
+        <option value="price_desc">Precio ↓</option>
+        <option value="duration">Duración</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <button id="clearFilters" class="btn ghost">Limpiar filtros</button>
+    </div>
+
+  </aside>
+
+  <section class="content">
+    <div class="controls">
+      <div class="left">
+        <div id="resultsInfo">Mostrando <strong id="count">0</strong> cursos</div>
+      </div>
+      <div class="right">
+        <div><label><input id="gridViewToggle" type="checkbox" /> Mostrar solo guardados</label></div>
+      </div>
+    </div>
+
+    <div class="grid" id="grid"></div>
+
+    <div style="margin-top:18px;display:flex;justify-content:center;gap:8px">
+      <button id="loadMore" class="btn ghost">Cargar más</button>
+    </div>
+
+  </section>
+</main>
+
+<!-- modal -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <div class="media"></div>
+    <div class="content">
+      <h2 id="modalTitle">Título curso</h2>
+      <p id="modalDesc">Descripción del curso...</p>
+      <div id="modalMeta" style="margin-top:12px;color:var(--muted)"></div>
+      <div style="margin-top:16px;display:flex;gap:8px"><button id="applyBtn" class="btn primary">Ir al curso</button><button id="closeModal" class="btn ghost">Cerrar</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- compare bar -->
+<div id="compareBar" class="compare-bar" style="display:none">
+  <div id="compareList" style="display:flex;gap:8px"></div>
+  <div style="display:flex;gap:8px">
+    <button id="compareBtn" class="btn primary">Comparar</button>
+    <button id="clearCompare" class="btn ghost">Limpiar</button>
+  </div>
+</div>
+
+<script>
+// --- Datos de muestra ---
+const DATA = [
+  {id:1,titulo:"Curso intensivo de Inglés B1",plataforma:"Udemy",nivel:"Intermedio",duracion:"6 semanas",hours:30,price:30,type:'paid',lang:'en',remote:true,desc:'Intensivo para pasar a B1.'},
+  {id:2,titulo:"Inglés Conversacional Básico",plataforma:"Coursera",nivel:"Básico",duracion:"4 semanas",hours:20,price:0,type:'free',lang:'es',remote:false,desc:'Práctica conversacional para principiantes.'},
+  {id:3,titulo:"HTML, CSS y JS",plataforma:"Platzi",nivel:"Básico",duracion:"8 semanas",hours:50,price:25,type:'paid',lang:'es',remote:true,desc:'Construye sitios y aprende fundamentos.'},
+  {id:4,titulo:"Data Analysis con Python",plataforma:"Coursera",nivel:"Intermedio",duracion:"10 semanas",hours:80,price:0,type:'free',lang:'en',remote:true,desc:'Análisis y visualización de datos.'},
+  {id:5,titulo:"UI/UX Design Essentials",plataforma:"Domestika",nivel:"Básico",duracion:"5 semanas",hours:25,price:15,type:'paid',lang:'es',remote:false,desc:'Principios y herramientas de diseño.'},
+  {id:6,titulo:"React Avanzado",plataforma:"Udemy",nivel:"Avanzado",duracion:"12 semanas",hours:120,price:60,type:'paid',lang:'en',remote:true,desc:'Hooks, context, testing y rendimiento.'}
+];
+
+let current = [...DATA];
+let perPage = 4;
+let page = 1;
+let favorites = JSON.parse(localStorage.getItem('fav')||'[]');
+let compare = JSON.parse(localStorage.getItem('cmp')||'[]');
+
+// elementos
+const grid = document.getElementById('grid');
+const countEl = document.getElementById('count');
+const qInput = document.getElementById('q');
+const searchBtn = document.getElementById('searchBtn');
+const loadMore = document.getElementById('loadMore');
+const clearFilters = document.getElementById('clearFilters');
+const platformsDiv = document.getElementById('platforms');
+const compareBar = document.getElementById('compareBar');
+const compareList = document.getElementById('compareList');
+const compareBtn = document.getElementById('compareBtn');
+const clearCompare = document.getElementById('clearCompare');
+const gridViewToggle = document.getElementById('gridViewToggle');
+
+// init
+function init(){
+  renderPlatformFilters();
+  applyFilters();
+  bindControls();
+  renderCompareBar();
+}
+
+function renderPlatformFilters(){
+  const plats = [...new Set(DATA.map(d=>d.plataforma))];
+  platformsDiv.innerHTML = plats.map(p=>`<label><input type="checkbox" class="plat" value="${p}" /> ${p}</label>`).join('');
+}
+
+function bindControls(){
+  searchBtn.addEventListener('click', ()=>{ page=1; applyFilters(); });
+  qInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ page=1; applyFilters(); } });
+  document.getElementById('duration').addEventListener('change', ()=>{ page=1; applyFilters(); });
+  document.getElementById('language').addEventListener('change', ()=>{ page=1; applyFilters(); });
+  document.getElementById('sort').addEventListener('change', ()=>{ page=1; applyFilters(); });
+  document.querySelectorAll('.plat').forEach(el=>el.addEventListener('change', ()=>{ page=1; applyFilters(); }));
+  document.getElementsByName('price').forEach(r=>r.addEventListener('change', ()=>{ page=1; applyFilters(); }));
+  loadMore.addEventListener('click', ()=>{ page++; renderGrid(); });
+  clearFilters.addEventListener('click', ()=>{ clearAllFilters(); });
+  compareBtn.addEventListener('click', ()=>{ showCompare(); });
+  clearCompare.addEventListener('click', ()=>{ compare=[]; localStorage.setItem('cmp',JSON.stringify(compare)); renderCompareBar(); });
+  gridViewToggle.addEventListener('change', ()=>{ page=1; applyFilters(); });
+}
+
+function clearAllFilters(){
+  qInput.value=''; document.getElementById('duration').value=''; document.getElementById('language').value=''; document.getElementById('sort').value='relevance'; document.querySelectorAll('.plat').forEach(p=>p.checked=false); document.querySelector('input[name=price][value=all]').checked=true; page=1; applyFilters();
+}
+
+function applyFilters(){
+  const q = qInput.value.toLowerCase();
+  const duration = document.getElementById('duration').value;
+  const lang = document.getElementById('language').value;
+  const sort = document.getElementById('sort').value;
+  const selectedPlats = [...document.querySelectorAll('.plat:checked')].map(n=>n.value);
+  const price = document.querySelector('input[name=price]:checked').value;
+  const onlySaved = gridViewToggle.checked;
+
+  current = DATA.filter(d=>{
+    if(onlySaved && !favorites.includes(d.id)) return false;
+    if(q && !d.titulo.toLowerCase().includes(q)) return false;
+    if(lang && d.lang!==lang) return false;
+    if(selectedPlats.length && !selectedPlats.includes(d.plataforma)) return false;
+    if(price==='free' && d.type!=='free') return false;
+    if(price==='paid' && d.type!=='paid') return false;
+    if(duration==='short' && !(d.hours<8)) return false;
+    if(duration==='medium' && !(d.hours>=8 && d.hours<=40)) return false;
+    if(duration==='long' && !(d.hours>40)) return false;
+    return true;
+  });
+
+  // sort
+  if(sort==='price_asc') current.sort((a,b)=>a.price-b.price);
+  if(sort==='price_desc') current.sort((a,b)=>b.price-a.price);
+  if(sort==='duration') current.sort((a,b)=>a.hours-b.hours);
+
+  page = 1; renderGrid();
+}
+
+function renderGrid(){
+  grid.innerHTML='';
+  const start = 0; const end = page*perPage;
+  const slice = current.slice(start,end);
+  slice.forEach(item=>{
+    const el = document.createElement('div'); el.className='card';
+    el.innerHTML = `
+      <div class="media"></div>
+      <div class="body">
+        <div class="title">${item.titulo}</div>
+        <div class="meta">${item.plataforma} • ${item.duration||item.duracion} • ${item.nivel}</div>
+        <div class="meta">${item.hours} horas • ${item.lang==='es'?'Español':'Inglés'}</div>
+        <div class="bottom">
+          <button class="btn ghost btn-save" data-id="${item.id}">${favorites.includes(item.id)?'Guardado':'Guardar'}</button>
+          <button class="btn ghost btn-compare" data-id="${item.id}">${compare.includes(item.id)?'Quitar':'Comparar'}</button>
+          <button class="btn primary btn-more" data-id="${item.id}">Ver más</button>
+        </div>
+      </div>
+    `;
+    grid.appendChild(el);
+  });
+
+  // update count
+  countEl.textContent = current.length;
+  // hide load more if all
+  loadMore.style.display = (current.length>page*perPage)?'inline-block':'none';
+
+  // bind card buttons
+  document.querySelectorAll('.btn-save').forEach(b=>b.addEventListener('click', onSave));
+  document.querySelectorAll('.btn-more').forEach(b=>b.addEventListener('click', onMore));
+  document.querySelectorAll('.btn-compare').forEach(b=>b.addEventListener('click', onCompareToggle));
+}
+
+function onSave(e){
+  const id = parseInt(e.currentTarget.dataset.id);
+  if(!favorites.includes(id)) favorites.push(id); else favorites = favorites.filter(x=>x!==id);
+  localStorage.setItem('fav', JSON.stringify(favorites));
+  applyFilters();
+}
+
+function onCompareToggle(e){
+  const id = parseInt(e.currentTarget.dataset.id);
+  if(!compare.includes(id)){
+    if(compare.length>=3){ alert('Máximo 3 cursos para comparar'); return; }
+    compare.push(id);
+  } else compare = compare.filter(x=>x!==id);
+  localStorage.setItem('cmp', JSON.stringify(compare));
+  renderCompareBar();
+  renderGrid();
+}
+
+function renderCompareBar(){
+  if(compare.length===0){ compareBar.style.display='none'; compareList.innerHTML=''; return; }
+  compareBar.style.display='flex';
+  compareList.innerHTML = compare.map(id=>{
+    const it = DATA.find(d=>d.id===id);
+    return `<div style="padding:6px 8px;border-radius:6px;background:#f1f5f9">${it.titulo}</div>`;
+  }).join('');
+}
+
+function onMore(e){
+  const id = parseInt(e.currentTarget.dataset.id);
+  const item = DATA.find(d=>d.id===id);
+  openModal(item);
+}
+
+function openModal(item){
+  document.getElementById('modalTitle').textContent = item.titulo;
+  document.getElementById('modalDesc').textContent = item.desc;
+  document.getElementById('modalMeta').textContent = `${item.plataforma} • ${item.nivel} • ${item.hours}h • ${item.type==='free'?'Gratis':'$'+item.price}`;
+  document.getElementById('modalBackdrop').style.display='flex';
+}
+
+function closeModal(){ document.getElementById('modalBackdrop').style.display='none'; }
+
+document.getElementById('closeModal').addEventListener('click', closeModal);
+document.getElementById('applyBtn').addEventListener('click', ()=>{ alert('Ir al curso (simulado)'); });
+
+function showCompare(){
+  if(compare.length<2){ alert('Selecciona al menos 2 cursos para comparar.'); return; }
+  // simple compare popup
+  const items = compare.map(id=>DATA.find(d=>d.id===id));
+  let html = items.map(it=>`<h3>${it.titulo}</h3><p>${it.plataforma} • ${it.nivel} • ${it.hours}h • ${it.type==='free'?'Gratis':'$'+it.price}</p>`).join('<hr>');
+  const win = window.open('','Comparación','width=700,height=600');
+  win.document.write(`<html><head><title>Comparar</title></head><body><h2>Comparar cursos</h2>${html}</body></html>`);
+}
+
+// close modal on backdrop click
+document.getElementById('modalBackdrop').addEventListener('click', (e)=>{ if(e.target.id==='modalBackdrop') closeModal(); });
+
+init();
+</script>
+</body>
+</html>
+
+
